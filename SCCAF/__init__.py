@@ -28,7 +28,7 @@ import louvain
 import scipy
 import seaborn as sns
 import patsy
-
+from sklearn import metrics
 from scanpy import settings as sett
 from scanpy import logging as logg
 
@@ -350,10 +350,21 @@ def self_projection(X,
         print("Mean CV accuracy: %.4f" % cvsm)
     # accuracy on cross validation and on test set
     clf.fit(X_train, y_train)
-    accuracy = clf.score(X_train, y_train)
-    print("Accuracy on the training set: %.4f" % accuracy)
-    accuracy_test = clf.score(X_test, y_test)
-    print("Accuracy on the hold-out set: %.4f" % accuracy_test)
+    
+
+    use_mcc = True
+    if use_mcc:
+        y_true = y_train
+        y_pred = clf.predict(X_train)
+        accuracy = metrics.matthews_corrcoef(y_true, y_pred) # actually MCC
+        print("MCC on the training set: %.4f" % accuracy)
+        accuracy_test = metrics.matthews_corrcoef(y_test, clf.predict(X_test)) # actually MCC
+        print("MCC on the hold-out set: %.4f" % accuracy_test)
+    else:
+        accuracy = clf.score(X_train, y_train)
+        print("Accuracy on the training set: %.4f" % accuracy)
+        accuracy_test = clf.score(X_test, y_test)
+        print("Accuracy on the hold-out set: %.4f" % accuracy_test)
     
     # accuracy of the whole dataset
     if whole:
@@ -593,7 +604,7 @@ def get_connection_matrix(ad_obs, key1, key2):
 
 
 def SCCAF_optimize_all(ad,
-                       min_acc=0.9,
+                       min_mcc=0.9,
                        R1norm_cutoff=0.5,
                        R2norm_cutoff=0.05,
                        R1norm_step=0.01,
@@ -606,7 +617,7 @@ def SCCAF_optimize_all(ad,
     """
     ad: `AnnData`
         The AnnData object of the expression profile.
-    min_acc: `float` optional (default: 0.9)
+    min_mcc: `float` optional (default: 0.9)
         The minimum self-projection accuracy to be optimized for.
         e.g., 0.9 means the clustering optimization (merging process)
         will not stop until the self-projection accuracy is above 90%.
@@ -625,7 +636,7 @@ def SCCAF_optimize_all(ad,
     R2norm_step: `float` optional (default: 0.001)
         The reduce step for minimum R2norm value.
     """
-    acc = 0
+    mcc = 0
     #'start_iter = -1
     if start is None:
         start = '%s_Round%d'%(prefix, start_iter)
@@ -637,24 +648,24 @@ def SCCAF_optimize_all(ad,
         ad.obs['%s_Round%d'%(prefix, start_iter)] = ad.obs[start]
     
     clstr_old = len(ad.obs['%s_Round%d'%(prefix, start_iter)].unique())
-    #'while acc < min_acc:
+    #'while mcc < min_mcc:
     for i in range(10):
         if start_iter >0:
             print("start_iter: %d" % start_iter)
         print("R1norm_cutoff: %f" % R1norm_cutoff)
         print("R2norm_cutoff: %f" % R2norm_cutoff)
-        print("Accuracy: %f" % acc)
+        print("MCC: %f" % mcc)
         print("======================")
-        ad, m1, m2, acc, start_iter = SCCAF_optimize(ad=ad,
+        ad, m1, m2, mcc, start_iter = SCCAF_optimize(ad=ad,
                                                      R1norm_cutoff=R1norm_cutoff,
                                                      R2norm_cutoff=R2norm_cutoff,
                                                      start_iter=start_iter,
-                                                     min_acc=min_acc, 
+                                                     min_mcc=min_mcc, 
                                                      prefix=prefix,
                                                      *args, **kwargs)
         print("m1: %f" % m1)
         print("m2: %f" % m2)
-        print("Accuracy: %f" % acc)
+        print("Accuracy: %f" % mcc)
         R1norm_cutoff = m1 - R1norm_step
         R2norm_cutoff = m2 - R2norm_step
         
@@ -664,7 +675,7 @@ def SCCAF_optimize_all(ad,
             print("converged SCCAF_all!")
             break
         
-        if acc >=min_acc:
+        if mcc >=min_mcc:
             break
             
             
@@ -694,7 +705,7 @@ def SCCAF_optimize(ad,
                    dist_cutoff=8,
                    classifier="LR",
                    mplotlib_backend=None,
-                   min_acc=1):
+                   min_mcc=1):
     """
     This is a self-projection confusion matrix directed cluster optimization function.
 
@@ -765,8 +776,8 @@ def SCCAF_optimize(ad,
     mplotlib_backend: `matplotlib.backends.backend_pdf` optional
         MatPlotLib multi-page backend object instance, previously initialised (currently the only type supported is
         PdfPages).
-    min_acc: `float`
-		the minimum total accuracy to be achieved. Above this threshold, the optimization will stop.
+    min_mcc: `float`
+		the minimum total MCC to be achieved. Above this threshold, the optimization will stop.
 
     return
     -----
@@ -794,14 +805,14 @@ def SCCAF_optimize(ad,
         labels = np.sort(ad.obs[old_id].unique().astype(int)).astype(str)
 
         # optimize
-        y_prob, y_pred, y_test, clf, cvsm, acc = \
+        y_prob, y_pred, y_test, clf, cvsm, mcc = \
             self_projection(X, ad.obs[old_id], sparsity=sparsity, n=n,
                             fraction=fraction, classifier=classifier, n_jobs=n_jobs)
-        accs = [acc]
+        mccs = [mcc]
         ad.obs['%s_self-projection' % old_id] = clf.predict(X)
         
         if plot:
-            aucs = plot_roc(y_prob, y_test, clf, cvsm=cvsm, acc=acc, title="Self-project ROC {}".format(old_id))
+            aucs = plot_roc(y_prob, y_test, clf, cvsm=cvsm, mcc=mcc, title="Self-project ROC {}".format(old_id))
             if mplotlib_backend:
                 mplotlib_backend.savefig()
                 plt.clf()
@@ -823,10 +834,10 @@ def SCCAF_optimize(ad,
         if use_projection:
             old_id1 = '%s_self-projection' % old_id
         for j in range(c_iter - 1):
-            y_prob, y_pred, y_test, clf, _, acc = self_projection(X, ad.obs[old_id1], sparsity=sparsity, n=n,
+            y_prob, y_pred, y_test, clf, _, mcc = self_projection(X, ad.obs[old_id1], sparsity=sparsity, n=n,
                                                                   fraction=fraction, classifier=classifier, cv=0,
                                                                   n_jobs=n_jobs)
-            accs.append(acc)
+            mccs.append(mcc)
             cmat = confusion_matrix(y_test, y_pred, clf, labels=labels)
             xmat = normalize_confmat1(cmat, mod)
             xmats.append(xmat)
@@ -841,11 +852,11 @@ def SCCAF_optimize(ad,
         print("Max R1mat: %f" % m1)
         print("Max R2mat: %f" % m2)
 
-        if np.min(accs) > min_acc:
+        if np.min(mccs) > min_mcc:
             ad.obs['%s_result' % prefix] = ad.obs[old_id]
-            print("Converge SCCAF_optimize min_acc!")
+            print("Converge SCCAF_optimize min_mcc!")
             break
-        print("min_acc: %f" % np.min(accs))
+        print("min_mcc: %f" % np.min(mccs))
 
         if plot:
             if plot_cmat:
@@ -885,7 +896,7 @@ def SCCAF_optimize(ad,
             print("no clustering!")
             break
     
-    return ad, m1, m2, np.min(accs), i
+    return ad, m1, m2, np.min(mccs), i
 
 
 ######################## PLOT FUNCTIONS ################################
@@ -1017,9 +1028,9 @@ def plot_heatmap_gray(X, title='', save=None, mplotlib_backend=None):
         plt.show()
 
 
-def plot_roc(y_prob, y_test, clf, plot='both', save=None, title='', colors=None, cvsm=None, acc=None, fontsize=16):
+def plot_roc(y_prob, y_test, clf, plot='both', save=None, title='', colors=None, cvsm=None, mcc=None, fontsize=16):
     """
-    y_prob, y_test, clf, plot=True, save=False, title ='', colors=None, cvsm=None, acc=None, fontsize=16):
+    y_prob, y_test, clf, plot=True, save=False, title ='', colors=None, cvsm=None, mcc=None, fontsize=16):
     """
     rc_aucs = [] #AUC
     rp_aucs = [] # AUC from recall precision
@@ -1084,9 +1095,9 @@ def plot_roc(y_prob, y_test, clf, plot='both', save=None, title='', colors=None,
             if cvsm:
                 ax[0].annotate("CV: %.3f" % cvsm, (0.5, 0.2), fontsize=fontsize)
                 ax[1].annotate("CV: %.3f" % cvsm, (0.5, 0.2), fontsize=fontsize)
-            if acc:
-                ax[0].annotate("Test: %.3f" % acc, (0.5, 0.1), fontsize=fontsize)
-                ax[1].annotate("Test: %.3f" % acc, (0.5, 0.1), fontsize=fontsize)
+            if mcc:
+                ax[0].annotate("Test: %.3f" % mcc, (0.5, 0.1), fontsize=fontsize)
+                ax[1].annotate("Test: %.3f" % mcc, (0.5, 0.1), fontsize=fontsize)
             
         else:
             fig, ax = plt.subplots()
@@ -1115,8 +1126,8 @@ def plot_roc(y_prob, y_test, clf, plot='both', save=None, title='', colors=None,
 
             if cvsm:
                 ax.annotate("CV: %.3f" % cvsm, (pos, 0.2), fontsize=fontsize)
-            if acc:
-                ax.annotate("Test: %.3f" % acc, (pos, 0.1), fontsize=fontsize)
+            if mcc:
+                ax.annotate("Test: %.3f" % mcc, (pos, 0.1), fontsize=fontsize)
 
         if save:
             plt.savefig(save)
