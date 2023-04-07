@@ -561,7 +561,7 @@ def get_distance_matrix(X, clusters, labels=None, metric='euclidean'):
 def merge_cluster(ad, old_id, new_id, groups):
     ad.obs[new_id] = ad.obs[old_id]
     ad.obs[new_id] = ad.obs[new_id].astype('category')
-    ad.obs[new_id].cat.categories = make_unique(groups.astype(str))
+    ad.obs[new_id].cat.set_categories(make_unique(groups.astype(str)))
     ad.obs[new_id] = ad.obs[new_id].str.split('_').str[0]
     return ad
 
