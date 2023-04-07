@@ -78,7 +78,7 @@ def calculate_average_MCC(y_true, y_pred):
             (y_true == label).astype(int),
             (y_pred == label).astype(int)
             )
-    return np.array(mccs.keys()).mean()
+    return np.fromiter(mccs.values(), dtype=float).mean()
 
     
 def run_BayesianGaussianMixture(Y, K):
