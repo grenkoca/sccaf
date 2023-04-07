@@ -70,6 +70,17 @@ color_long = ['#e6194b','#3cb44b','#ffe119','#0082c8','#f58231','#911eb4',\
               "#5B4534", "#FDE8DC", "#404E55", "#0089A3", "#CB7E98", "#A4E804", "#324E72"]
 
 
+
+def calculate_average_MCC(y_true, y_pred):
+    mccs = {}
+    for label in unique(y_true):
+        mcc[label] = metrics.matthews_corrcoef(
+            (y_true == label).astype(int),
+            (y_pred == label).astype(int)
+            )
+    return np.array(mccs.keys()).nean()
+
+    
 def run_BayesianGaussianMixture(Y, K):
     """
     For K-means clustering
@@ -358,8 +369,11 @@ def self_projection(X,
         y_pred = clf.predict(X_train)
         metric = metrics.matthews_corrcoef(y_true, y_pred) # actually MCC
         print("MCC on the training set: %.4f" % metric)
-        metric_test = metrics.matthews_corrcoef(y_test, clf.predict(X_test)) # actually MCC
+        test_pred = clf.predict(X_test)
+        metric_test = metrics.matthews_corrcoef(y_test, test_pred) # actually MCC
         print("MCC on the hold-out set: %.4f" % metric_test)
+        per_cell_type_mcc = calculate_average_MCC(y_test, test_pred)
+        print("(Average per celltype MCC: %.4f)" % per_cell_type_mcc)
     else:
         metric = clf.score(X_train, y_train)
         print("Accuracy on the training set: %.4f" % metric)
@@ -673,7 +687,7 @@ def SCCAF_optimize_all(ad,
                                                      *args, **kwargs)
         print("m1: %f" % m1)
         print("m2: %f" % m2)
-        print("Accuracy: %f" % mcc)
+        print("MCC: %f" % mcc)
         R1norm_cutoff = m1 - R1norm_step
         R2norm_cutoff = m2 - R2norm_step
 
