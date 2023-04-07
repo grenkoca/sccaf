@@ -74,7 +74,7 @@ color_long = ['#e6194b','#3cb44b','#ffe119','#0082c8','#f58231','#911eb4',\
 def calculate_average_MCC(y_true, y_pred):
     mccs = {}
     for label in np.unique(y_true):
-        mcc[label] = metrics.matthews_corrcoef(
+        mccs[label] = metrics.matthews_corrcoef(
             (y_true == label).astype(int),
             (y_pred == label).astype(int)
             )
