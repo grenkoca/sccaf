@@ -71,14 +71,14 @@ color_long = ['#e6194b','#3cb44b','#ffe119','#0082c8','#f58231','#911eb4',\
 
 
 
-def calculate_average_MCC(y_true, y_pred):
+def calculate_minimum_MCC(y_true, y_pred):
     mccs = {}
     for label in np.unique(y_true):
         mccs[label] = metrics.matthews_corrcoef(
             (y_true == label).astype(int),
             (y_pred == label).astype(int)
             )
-    return np.fromiter(mccs.values(), dtype=float).mean()
+    return np.fromiter(mccs.values(), dtype=float).min()
 
     
 def run_BayesianGaussianMixture(Y, K):
@@ -372,15 +372,16 @@ def self_projection(X,
         test_pred = clf.predict(X_test)
         metric_test = metrics.matthews_corrcoef(y_test, test_pred) # actually MCC
         print("MCC on the hold-out set: %.4f" % metric_test)
-        per_cell_type_mcc = calculate_average_MCC(y_test, test_pred)
+        per_cell_type_mcc = calculate_minimum_MCC(y_test, test_pred)
         print("(Average per celltype MCC: %.4f)" % per_cell_type_mcc)
+        eval_metric = per_cell_type_mcc
     else:
         metric = clf.score(X_train, y_train)
         print("Accuracy on the training set: %.4f" % metric)
         metric_test = clf.score(X_test, y_test)
         print("Accuracy on the hold-out set: %.4f" % metric_test)
+        eval_metric = metric_test
     
-    eval_metric = metric_test
 
     # metric of the whole dataset
     if whole:
