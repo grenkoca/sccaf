@@ -268,7 +268,7 @@ def self_projection(X,
                     sparsity=0.5,
                     fraction=0.5,
                     random_state=1,
-		    solver='liblinear',
+                    solver='liblinear',
                     n=0,
                     cv=5,
                     whole=False, 
@@ -341,7 +341,7 @@ def self_projection(X,
         clf = SGDClassifier(loss='perceptron', n_jobs=n_jobs)
     elif classifier == 'DT':
         clf = DecisionTreeClassifier()
-    
+
     # mean cross validation score
     cvsm = 0
     if cv > 0:
@@ -350,7 +350,7 @@ def self_projection(X,
         print("Mean CV accuracy: %.4f" % cvsm)
     # accuracy on cross validation and on test set
     clf.fit(X_train, y_train)
-    
+
 
     use_mcc = True
     if use_mcc:
@@ -365,18 +365,18 @@ def self_projection(X,
         print("Accuracy on the training set: %.4f" % accuracy)
         accuracy_test = clf.score(X_test, y_test)
         print("Accuracy on the hold-out set: %.4f" % accuracy_test)
-    
+
     # accuracy of the whole dataset
     if whole:
         accuracy = clf.score(X, cell_types)
         print("Accuracy on the whole set: %.4f" % accuracy)
-    
+
     # get predicted probability on the test set
     y_prob = None
     if not classifier in ['SH', 'PCP']:
         y_prob = clf.predict_proba(X_test)
     y_pred = clf.predict(X_test)
-    
+
     return y_prob, y_pred, y_test, clf, cvsm, accuracy_test
 
 
@@ -564,8 +564,8 @@ def merge_cluster(ad, old_id, new_id, groups):
     ad.obs[new_id].cat.categories = make_unique(groups.astype(str))
     ad.obs[new_id] = ad.obs[new_id].str.split('_').str[0]
     return ad
-    
-    
+
+
 def find_high_resolution(ad, resolution=4, n=100):
     cut = resolution
     while cut > 0.5:
@@ -611,7 +611,7 @@ def SCCAF_optimize_all(ad,
                        R2norm_step=0.001, 
                        prefix='L1',
                        min_i = 3,
-		       start = None,
+                       start = None,
                        start_iter = 0,
                        *args, **kwargs):
     """
@@ -646,7 +646,7 @@ def SCCAF_optimize_all(ad,
         if not start in ad.obs.keys():
             raise ValueError("`adata.obs['%s']` doesn't exist. Please assign the initial clustering first."%(start))
         ad.obs['%s_Round%d'%(prefix, start_iter)] = ad.obs[start]
-    
+
     clstr_old = len(ad.obs['%s_Round%d'%(prefix, start_iter)].unique())
     #'while mcc < min_mcc:
     for i in range(10):
@@ -668,17 +668,17 @@ def SCCAF_optimize_all(ad,
         print("Accuracy: %f" % mcc)
         R1norm_cutoff = m1 - R1norm_step
         R2norm_cutoff = m2 - R2norm_step
-        
+
         clstr_new = len(ad.obs['%s_result'%prefix].unique())
-        
+
         if clstr_new >= clstr_old and i >= min_i:
             print("converged SCCAF_all!")
             break
-        
+
         if mcc >=min_mcc:
             break
-            
-            
+
+
 def SCCAF_optimize(ad,
                    prefix='L1',
                    use='raw',
@@ -768,8 +768,8 @@ def SCCAF_optimize(ad,
         The cutoff for the euclidean distance between two clusters of cells.
         8.0 means the euclidean distance between two cell types should be greater than 8.0.
     low_res: `str` optional
-		the clustering boundary for under-clustering. Set a low resolution in louvain/leiden clustering and give
-		the key as the underclustering boundary.
+                the clustering boundary for under-clustering. Set a low resolution in louvain/leiden clustering and give
+                the key as the underclustering boundary.
     classifier: `String` optional (default: 'LR')
         a machine learning model in "LR" (logistic regression), \
         "RF" (Random Forest), "GNB"(Gaussion Naive Bayes), "SVM" (Support Vector Machine) and "DT"(Decision Tree).
@@ -777,7 +777,7 @@ def SCCAF_optimize(ad,
         MatPlotLib multi-page backend object instance, previously initialised (currently the only type supported is
         PdfPages).
     min_mcc: `float`
-		the minimum total MCC to be achieved. Above this threshold, the optimization will stop.
+                the minimum total MCC to be achieved. Above this threshold, the optimization will stop.
 
     return
     -----
@@ -793,7 +793,7 @@ def SCCAF_optimize(ad,
             raise ValueError("`adata.obsm['X_pca']` doesn't exist. Run `sc.pp.pca` first.")
         X = ad.obsm['X_pca']
     elif 'X_%s'%use in ad.obsm.dtype.fields:
-	X = ad.obsm['X_%s'%use]
+        X = ad.obsm['X_%s'%use]
     else:
         X = ad[:,ad.var['highly_variable']].X
 
@@ -810,7 +810,7 @@ def SCCAF_optimize(ad,
                             fraction=fraction, classifier=classifier, n_jobs=n_jobs)
         mccs = [mcc]
         ad.obs['%s_self-projection' % old_id] = clf.predict(X)
-        
+
         if plot:
             aucs = plot_roc(y_prob, y_test, clf, cvsm=cvsm, mcc=mcc, title="Self-project ROC {}".format(old_id))
             if mplotlib_backend:
@@ -881,21 +881,21 @@ def SCCAF_optimize(ad,
             ad.obs['%s_result' % prefix] = ad.obs[old_id]
             print("Converge SCCAF_optimize no. cluster!")
             break
-        
+
         merge_cluster(ad, old_id1, new_id, groups)
-        
+
         if plot:
             sc.pl.scatter(ad, basis=basis, color=[new_id], color_map="RdYlBu_r", legend_loc='on data',
                           show=(mplotlib_backend is None))
             if mplotlib_backend:
                 mplotlib_backend.savefig()
                 plt.clf()
-        
+
         if len(np.unique(groups)) <= 1:
             ad.obs['%s_result' % prefix] = ad.obs[new_id]
             print("no clustering!")
             break
-    
+
     return ad, m1, m2, np.min(mccs), i
 
 
@@ -1047,17 +1047,17 @@ def plot_roc(y_prob, y_test, clf, plot='both', save=None, title='', colors=None,
         recs.append(rec)
         rc_aucs.append(metrics.auc(fpr, tpr))
         rp_aucs.append(metrics.auc(rec, prs))
-    
+
     good_aucs = np.asarray(rc_aucs)
     good_aucs = good_aucs[~np.isnan(good_aucs)]
     min_auc_rc = np.min(good_aucs)
     max_auc_rc = np.max(good_aucs)
-    
+
     good_aucs = np.asarray(rp_aucs)
     good_aucs = good_aucs[~np.isnan(good_aucs)]
     min_auc_rp = np.min(good_aucs)
     max_auc_rp = np.max(good_aucs)
-    
+
     if plot in ['both','roc','prc']:
         if colors is None:
             if len(clf.classes_) < 21:
@@ -1067,7 +1067,7 @@ def plot_roc(y_prob, y_test, clf, plot='both', save=None, title='', colors=None,
             else:
                 colors = default_102
         if plot == 'both':
-            
+
             fig, ax = plt.subplots(1, 2, sharey=True)
             ax[0].plot([0, 1], [0, 1], color='k', ls=':')
             ax[0].set_xticks([0, 1])
@@ -1087,7 +1087,7 @@ def plot_roc(y_prob, y_test, clf, plot='both', save=None, title='', colors=None,
                 ax[1].plot(Xs[i], Ys[i], c=colors[i], lw=2, label=cell_type)
             ax[1].set_xlabel('Recall')
             ax[1].set_ylabel('Precision')
-            
+
             ax[0].annotate(r'$AUC_{min}: %.3f$' % min_auc_rc, (0.5, 0.4), fontsize=fontsize)
             ax[0].annotate(r'$AUC_{max}: %.3f$' % max_auc_rc, (0.5, 0.3), fontsize=fontsize)
             ax[1].annotate(r'$AUC_{min}: %.3f$' % min_auc_rp, (0.5, 0.4), fontsize=fontsize)
@@ -1098,7 +1098,7 @@ def plot_roc(y_prob, y_test, clf, plot='both', save=None, title='', colors=None,
             if mcc:
                 ax[0].annotate("Test: %.3f" % mcc, (0.5, 0.1), fontsize=fontsize)
                 ax[1].annotate("Test: %.3f" % mcc, (0.5, 0.1), fontsize=fontsize)
-            
+
         else:
             fig, ax = plt.subplots()
             ax.set_xticks([0, 1])
@@ -1131,7 +1131,7 @@ def plot_roc(y_prob, y_test, clf, plot='both', save=None, title='', colors=None,
 
         if save:
             plt.savefig(save)
-        
+
     return rc_aucs
 
 
@@ -1368,8 +1368,8 @@ def readHCA(fin):
     ad.var_names = np.array(data.get("gene_names")).astype(str)
     ad.var['ensembl_gene'] = np.array(data.get("genes")).astype(str)
     return(ad)
-    
-    
+
+
 def sc_workflow(ad, prefix='L1', resolution=1.5, n_pcs=15, do_tsne=True):
     sc.pp.normalize_per_cell(ad, counts_per_cell_after=1e4)
     filter_result = sc.pp.filter_genes_dispersion(
