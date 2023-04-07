@@ -271,6 +271,7 @@ def self_projection(X,
                     solver='liblinear',
                     n=0,
                     cv=5,
+                    use_mcc = True,
                     whole=False, 
                     n_jobs=None):
     # n = 100 should be good.
@@ -352,24 +353,31 @@ def self_projection(X,
     clf.fit(X_train, y_train)
 
 
-    use_mcc = True
     if use_mcc:
         y_true = y_train
         y_pred = clf.predict(X_train)
-        accuracy = metrics.matthews_corrcoef(y_true, y_pred) # actually MCC
-        print("MCC on the training set: %.4f" % accuracy)
-        accuracy_test = metrics.matthews_corrcoef(y_test, clf.predict(X_test)) # actually MCC
-        print("MCC on the hold-out set: %.4f" % accuracy_test)
+        metric = metrics.matthews_corrcoef(y_true, y_pred) # actually MCC
+        print("MCC on the training set: %.4f" % metric)
+        metric_test = metrics.matthews_corrcoef(y_test, clf.predict(X_test)) # actually MCC
+        print("MCC on the hold-out set: %.4f" % metric_test)
     else:
-        accuracy = clf.score(X_train, y_train)
-        print("Accuracy on the training set: %.4f" % accuracy)
-        accuracy_test = clf.score(X_test, y_test)
-        print("Accuracy on the hold-out set: %.4f" % accuracy_test)
+        metric = clf.score(X_train, y_train)
+        print("Accuracy on the training set: %.4f" % metric)
+        metric_test = clf.score(X_test, y_test)
+        print("Accuracy on the hold-out set: %.4f" % metric_test)
+    
+    eval_metric = metric_test
 
-    # accuracy of the whole dataset
+    # metric of the whole dataset
     if whole:
-        accuracy = clf.score(X, cell_types)
-        print("Accuracy on the whole set: %.4f" % accuracy)
+        if use_mcc:
+            metric = metrics.matthews_corrcoef(cell_types, clf.predict(X))
+            print("MCC on the whole set: %.4f" % metric)
+        
+        else:
+            metric = clf.score(X, cell_types)
+            print("Accuracy on the whole set: %.4f" % metric)
+        eval_metric = metric
 
     # get predicted probability on the test set
     y_prob = None
@@ -377,7 +385,7 @@ def self_projection(X,
         y_prob = clf.predict_proba(X_test)
     y_pred = clf.predict(X_test)
 
-    return y_prob, y_pred, y_test, clf, cvsm, accuracy_test
+    return y_prob, y_pred, y_test, clf, cvsm, eval_metric
 
 
 def make_unique(dup_list):
